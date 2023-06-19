@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import ntpath
+import time
 
 while True:
     # Solicita a URL do site ao usuário
@@ -83,13 +84,31 @@ while True:
             filename = f"{categoria_dir}/{sprite_name}.png"
             filepath = os.path.join(os.getcwd(), filename)
 
-            # Obtém apenas o nome do arquivo sem o diretório
-            file_name_only = ntpath.basename(filename)
+            # Obtém apenas o nome do arquivo sem o diretório e a extensão
+            file_name_only, file_extension = os.path.splitext(ntpath.basename(filename))
+
+            # Verifica se o arquivo já existe e adiciona um número sequencial ao nome
+            index = 1
+            while os.path.exists(filepath):
+                new_filename = f"{file_name_only}_{index}{file_extension}"
+                filepath = os.path.join(os.getcwd(), categoria_dir, new_filename)
+                index += 1
 
             # Faz o download do sprite e salva no arquivo
             with open(filepath, "wb") as file:
                 response = requests.get(sprite_download_link)
                 file.write(response.content)
+
+            # Obtém o tamanho do arquivo em KB ou MB
+            file_size = os.path.getsize(filepath)
+            if file_size >= 1024 * 1024:
+                size_str = f"{file_size / (1024 * 1024):.2f} MB"
+            else:
+                size_str = f"{file_size / 1024:.2f} KB"
+
+            # Escreve no arquivo de log
+            log_entry = f"{file_name_only} ({size_str}) - Downloaded\n"
+            log_file.write(log_entry)
 
             # Atualiza a barra de progresso
             pbar.update(1)
@@ -133,21 +152,25 @@ while True:
         # Total de sprites para download
         total_sprites = sum(len(sprites) for sprites in categorias.values())
 
-        # Cria a barra de progresso
-        with tqdm(total=total_sprites) as pbar:
-            # Itera sobre as categorias e salva os sprites
-            for categoria, sprites in categorias.items():
-                categoria_dir = os.path.join(base_folder, categoria)
-                os.makedirs(categoria_dir, exist_ok=True)
+        # Cria o arquivo de log
+        log_filename = os.path.join(base_folder, f"log_{int(time.time())}.txt")
+        with open(log_filename, "w") as log_file:
+            # Cria a barra de progresso
+            with tqdm(total=total_sprites) as pbar:
+                # Itera sobre as categorias e salva os sprites
+                for categoria, sprites in categorias.items():
+                    categoria_dir = os.path.join(base_folder, categoria)
+                    os.makedirs(categoria_dir, exist_ok=True)
 
-                print(f"\nCategoria: {categoria}")
-                print("Sprites:")
+                    print(f"\nCategoria: {categoria}")
+                    print("Sprites:")
 
-                # Inicia o download de cada sprite em uma thread separada
-                with ThreadPoolExecutor(max_workers=8) as executor:
-                    for sprite in sprites:
-                        executor.submit(download_sprite, sprite)
+                    # Inicia o download de cada sprite em uma thread separada
+                    with ThreadPoolExecutor(max_workers=8) as executor:
+                        for sprite in sprites:
+                            executor.submit(download_sprite, sprite)
 
         print("\nDownload completed!")
+        print(f"Log file created: {log_filename}")
     else:
         print("No sprites were found on the page.")
