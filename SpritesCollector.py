@@ -14,6 +14,7 @@ import os
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+import ntpath
 
 # Solicita a URL do site ao usuário
 url = input("Enter the URL of the website to download the sprites: ")
@@ -34,7 +35,7 @@ game_title = game_title[:-24]
 # Remove caracteres inválidos do nome do jogo para criar o nome da pasta
 invalid_chars = ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"]
 for char in invalid_chars:
-    game_title = game_title.replace(char, "")
+    game_title = game_title.replace(char, "_")
 
 # Cria a pasta base com o nome do jogo
 base_folder = os.path.join(os.getcwd(), game_title)
@@ -62,12 +63,24 @@ if len(sprite_links) > 0:
     def download_sprite(sprite):
         sprite_name = sprite['name']
         sprite_name = sprite_name.replace("/", "_")  # Substitui "/" por "_"
+        sprite_name = sprite_name.replace("\\", "_")  # Substitui "\\" por "_"
+        sprite_name = sprite_name.replace(":", "_")  # Substitui ":" por "_"
+        sprite_name = sprite_name.replace("*", "_")  # Substitui "*" por "_"
+        sprite_name = sprite_name.replace("?", "_")  # Substitui "?" por "_"
+        sprite_name = sprite_name.replace("\"", "_")  # Substitui "\"" por "_"
+        sprite_name = sprite_name.replace("<", "_")  # Substitui "<" por "_"
+        sprite_name = sprite_name.replace(">", "_")  # Substitui ">" por "_"
+        sprite_name = sprite_name.replace("|", "_")  # Substitui "|" por "_"
+
         sprite_download_link = sprite['download_link']
 
         # Define o caminho e o nome do arquivo a ser baixado
         categoria_dir = os.path.join(base_folder, categoria)
         filename = f"{categoria_dir}/{sprite_name}.png"
         filepath = os.path.join(os.getcwd(), filename)
+
+        # Obtém apenas o nome do arquivo sem o diretório
+        file_name_only = ntpath.basename(filename)
 
         # Faz o download do sprite e salva no arquivo
         with open(filepath, "wb") as file:
@@ -76,6 +89,9 @@ if len(sprite_links) > 0:
 
         # Atualiza a barra de progresso
         pbar.update(1)
+
+        # Exibe o nome do arquivo sendo baixado
+        print(f"Downloading: {file_name_only}", end="\r")
 
     # Itera sobre os links encontrados e extrai as informações
     for index, link in enumerate(sprite_links, start=1):
